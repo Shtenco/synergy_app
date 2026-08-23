@@ -1,0 +1,7 @@
+{
+  "name": "@sinergy-smm/web-admin",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {"dev":"next dev","build":"next build"},
+  "dependencies": {"next":"15.4.6","react":"19.1.1","react-dom":"19.1.1"}
+}

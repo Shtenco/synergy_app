@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+node_modules/
+.next/
+dist/
+build/
+*.sqlite3
+*.session
+*.pem
+*.p12
+*.jks
+*.keystore
+.DS_Store

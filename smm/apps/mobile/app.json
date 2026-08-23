@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "Синергия-СММ",
+    "slug": "sinergy-smm",
+    "version": "1.0.0",
+    "scheme": "sinergysmm",
+    "ios": {"bundleIdentifier": "ai.sinergy.smm"},
+    "android": {"package": "ai.sinergy.smm"}
+  }
+}
