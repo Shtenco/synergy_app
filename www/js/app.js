@@ -1,0 +1,1 @@
+(() => { const el=document.getElementById('capital'); if(el){ const saved=localStorage.getItem('sinergy.capital'); el.textContent=saved ? `Текущий локальный капитал: ${saved}` : 'Локальный финансовый контур готов.'; } })();
