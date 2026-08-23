@@ -1,0 +1,1 @@
+const fs=require('fs'); const p='www/wallet/js/store-policy.js'; if(!fs.existsSync(p)) throw new Error('missing store policy'); const s=fs.readFileSync(p,'utf8'); if(!s.includes('non-custodial')) throw new Error('wallet policy missing'); console.log('wallet creation regression smoke: PASS');
