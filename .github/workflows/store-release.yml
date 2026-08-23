@@ -1,0 +1,267 @@
+name: Store Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Release tag, e.g. v8.1.0
+        required: true
+        default: v8.1.0
+      publish_google_play:
+        description: Upload AAB to Google Play
+        required: true
+        type: boolean
+        default: false
+      publish_rustore:
+        description: Upload AAB to RuStore
+        required: true
+        type: boolean
+        default: false
+      publish_testflight:
+        description: Upload IPA to TestFlight
+        required: true
+        type: boolean
+        default: false
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: store-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  APP_ID: ai.sinergy.finance
+
+jobs:
+  verify:
+    name: Verify source
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: python scripts/verify_store_source.py
+      - run: python tests/nexus_v800_latent_reasoning_e2e.py
+      - run: python tests/currency_ui_test.py
+      - run: python tests/home_capital_curve_v770_test.py
+      - run: node tests/wallet_creation_regression_test.js
+      - run: node tests/integration_wallet_test.js
+
+  android:
+    name: Android APK + AAB
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: Decode Android upload keystore
+        env:
+          KS_B64: ${{ secrets.SINERGY_KEYSTORE_B64 }}
+        run: |
+          test -n "$KS_B64" || { echo 'Missing SINERGY_KEYSTORE_B64'; exit 1; }
+          printf '%s' "$KS_B64" | base64 -d > "$RUNNER_TEMP/sinergy-upload.jks"
+      - name: Build signed APK and AAB
+        working-directory: android
+        env:
+          SINERGY_KEYSTORE_FILE: ${{ runner.temp }}/sinergy-upload.jks
+          SINERGY_KEYSTORE_PASSWORD: ${{ secrets.SINERGY_KEYSTORE_PASSWORD }}
+          SINERGY_KEY_ALIAS: ${{ secrets.SINERGY_KEY_ALIAS }}
+          SINERGY_KEY_PASSWORD: ${{ secrets.SINERGY_KEY_PASSWORD }}
+        run: gradle --no-daemon clean :app:assembleRelease :app:bundleRelease
+      - name: Create checksums
+        run: |
+          sha256sum android/app/build/outputs/apk/release/*.apk > android-apk.sha256
+          sha256sum android/app/build/outputs/bundle/release/*.aab > android-aab.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sinergy-finance-android
+          path: |
+            android/app/build/outputs/apk/release/*.apk
+            android/app/build/outputs/bundle/release/*.aab
+            android-apk.sha256
+            android-aab.sha256
+          if-no-files-found: error
+
+  google-play:
+    name: Google Play
+    needs: android
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_google_play) || (github.event_name == 'push' && vars.AUTO_PUBLISH_GOOGLE_PLAY == 'true') }}
+    runs-on: ubuntu-latest
+    environment: google-play
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sinergy-finance-android
+          path: dist/android
+      - name: Locate AAB
+        id: aab
+        shell: bash
+        run: echo "path=$(find dist/android -name '*.aab' -type f | head -1)" >> "$GITHUB_OUTPUT"
+      - name: Upload to Google Play internal track
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ai.sinergy.finance
+          releaseFiles: ${{ steps.aab.outputs.path }}
+          track: internal
+          status: completed
+
+  rustore:
+    name: RuStore
+    needs: android
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_rustore) || (github.event_name == 'push' && vars.AUTO_PUBLISH_RUSTORE == 'true') }}
+    runs-on: ubuntu-latest
+    environment: rustore
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: sinergy-finance-android
+          path: dist/android
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Upload AAB to existing RuStore draft
+        env:
+          RUSTORE_KEY_ID: ${{ secrets.RUSTORE_KEY_ID }}
+          RUSTORE_PRIVATE_KEY: ${{ secrets.RUSTORE_PRIVATE_KEY }}
+          RUSTORE_PACKAGE_NAME: ai.sinergy.finance
+          RUSTORE_VERSION_ID: ${{ secrets.RUSTORE_VERSION_ID }}
+        run: python scripts/rustore_upload.py "$(find dist/android -name '*.aab' -type f | head -1)"
+
+  ios:
+    name: iOS IPA
+    needs: verify
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode
+        run: |
+          if [ -d /Applications/Xcode_26.6.app ]; then sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer; fi
+          xcodebuild -version
+      - name: Import Apple distribution certificate
+        env:
+          CERT_B64: ${{ secrets.APPLE_DISTRIBUTION_CERT_P12_B64 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_CERT_PASSWORD }}
+        run: |
+          test -n "$CERT_B64" || { echo 'Missing APPLE_DISTRIBUTION_CERT_P12_B64'; exit 1; }
+          KEYCHAIN="$RUNNER_TEMP/app-signing.keychain-db"
+          security create-keychain -p actions "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p actions "$KEYCHAIN"
+          printf '%s' "$CERT_B64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security list-keychain -d user -s "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -s -k actions "$KEYCHAIN"
+      - name: Install provisioning profile
+        env:
+          PROFILE_B64: ${{ secrets.APPLE_PROVISIONING_PROFILE_B64 }}
+        run: |
+          test -n "$PROFILE_B64" || { echo 'Missing APPLE_PROVISIONING_PROFILE_B64'; exit 1; }
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          printf '%s' "$PROFILE_B64" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
+          UUID=$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" | /usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin)
+          cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.mobileprovision"
+      - name: Archive
+        working-directory: ios
+        env:
+          SINERGY_APPLE_TEAM_ID: ${{ secrets.SINERGY_APPLE_TEAM_ID }}
+        run: |
+          xcodebuild -project SinergyFinance.xcodeproj \
+            -scheme SinergyFinance \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/SinergyFinance.xcarchive \
+            archive DEVELOPMENT_TEAM="$SINERGY_APPLE_TEAM_ID"
+      - name: Export IPA
+        working-directory: ios
+        env:
+          SINERGY_APPLE_TEAM_ID: ${{ secrets.SINERGY_APPLE_TEAM_ID }}
+        run: |
+          cat > build/ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>${SINERGY_APPLE_TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath build/SinergyFinance.xcarchive -exportPath build/export -exportOptionsPlist build/ExportOptions.plist
+          shasum -a 256 build/export/*.ipa > build/export/ipa.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sinergy-finance-ios
+          path: |
+            ios/build/export/*.ipa
+            ios/build/export/ipa.sha256
+          if-no-files-found: error
+
+  testflight:
+    name: TestFlight upload
+    needs: ios
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_testflight) || (github.event_name == 'push' && vars.AUTO_PUBLISH_TESTFLIGHT == 'true') }}
+    runs-on: macos-15
+    environment: app-store
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sinergy-finance-ios
+          path: dist/ios
+      - name: Install App Store Connect API key
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          printf '%s' "$ASC_PRIVATE_KEY" > "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+      - name: Upload IPA to App Store Connect / TestFlight
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          IPA=$(find dist/ios -name '*.ipa' -type f | head -1)
+          xcrun altool --upload-app --type ios --file "$IPA" --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+
+  github-release:
+    name: GitHub Release
+    needs: [android, ios]
+    if: ${{ always() && needs.android.result == 'success' && needs.ios.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Resolve tag
+        id: tag
+        shell: bash
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then TAG="${GITHUB_REF_NAME}"; else TAG="${{ inputs.release_tag }}"; fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            dist/**/*.apk
+            dist/**/*.aab
+            dist/**/*.ipa
+            dist/**/*.sha256
