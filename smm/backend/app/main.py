@@ -1,8 +1,12 @@
 from fastapi import FastAPI
-from .routers import health, dashboard, content, leads
+from fastapi.middleware.cors import CORSMiddleware
+from .config import settings
+from .database import Base, engine
+from .routers import health, auth, brands, calendar, inbox, analytics, autopilot, dashboard, content, leads
 
-app = FastAPI(title="SINERGY SMM API", version="1.0.0")
+Base.metadata.create_all(bind=engine)
+app=FastAPI(title=settings.app_name,version="1.1.0")
+app.add_middleware(CORSMiddleware,allow_origins=[x.strip() for x in settings.cors_origins.split(",")],allow_credentials=True,allow_methods=["*"],allow_headers=["*"])
 app.include_router(health.router)
-app.include_router(dashboard.router, prefix="/v1")
-app.include_router(content.router, prefix="/v1")
-app.include_router(leads.router, prefix="/v1")
+for router in [auth.router,brands.router,calendar.router,inbox.router,analytics.router,autopilot.router,dashboard.router,content.router,leads.router]:
+    app.include_router(router,prefix="/v1")
