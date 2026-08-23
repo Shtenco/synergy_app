@@ -1,0 +1,260 @@
+name: SINERGY Mobile Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_channel:
+        description: "Release channel"
+        required: true
+        default: "internal"
+        type: choice
+        options:
+          - internal
+          - beta
+          - production
+      create_github_release:
+        description: "Create GitHub Release"
+        required: true
+        default: false
+        type: boolean
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mobile-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  JAVA_VERSION: "17"
+
+jobs:
+  detect:
+    name: Detect mobile projects
+    runs-on: ubuntu-latest
+    outputs:
+      android: ${{ steps.detect.outputs.android }}
+      ios: ${{ steps.detect.outputs.ios }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: detect
+        shell: bash
+        run: |
+          if [[ -f ./gradlew || -f ./android/gradlew ]]; then
+            echo "android=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "android=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if find . -maxdepth 4 \( -name '*.xcodeproj' -o -name '*.xcworkspace' \) -print -quit | grep -q .; then
+            echo "ios=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ios=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  android:
+    name: Android APK + AAB
+    needs: detect
+    if: needs.detect.outputs.android == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Locate Gradle project
+        id: gradle
+        shell: bash
+        run: |
+          if [[ -f ./gradlew ]]; then
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          elif [[ -f ./android/gradlew ]]; then
+            echo "dir=android" >> "$GITHUB_OUTPUT"
+          else
+            echo "No Gradle wrapper found" >&2
+            exit 1
+          fi
+
+      - name: Restore Android signing keystore
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        shell: bash
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/sinergy-release.keystore"
+          echo "SIGNING_STORE_FILE=$RUNNER_TEMP/sinergy-release.keystore" >> "$GITHUB_ENV"
+          echo "SIGNING_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" >> "$GITHUB_ENV"
+          echo "SIGNING_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}" >> "$GITHUB_ENV"
+          echo "SIGNING_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}" >> "$GITHUB_ENV"
+
+      - name: Build release APK and AAB
+        working-directory: ${{ steps.gradle.outputs.dir }}
+        shell: bash
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon clean assembleRelease bundleRelease
+
+      - name: Collect Android artifacts
+        shell: bash
+        run: |
+          mkdir -p dist/android
+          find "${{ steps.gradle.outputs.dir }}" -type f \( -name '*release*.apk' -o -name '*release*.aab' \) -exec cp {} dist/android/ \;
+          ls -lah dist/android
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sinergy-android
+          path: dist/android/*
+          if-no-files-found: error
+
+      - name: Upload AAB to Google Play
+        if: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON != '' && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')) }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ vars.ANDROID_PACKAGE_NAME }}
+          releaseFiles: dist/android/*.aab
+          track: ${{ github.event.inputs.release_channel == 'production' && 'production' || github.event.inputs.release_channel == 'beta' && 'beta' || 'internal' }}
+          status: completed
+
+  ios:
+    name: iOS Archive + TestFlight
+    needs: detect
+    if: needs.detect.outputs.ios == 'true'
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install signing certificate
+        if: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 != '' }}
+        env:
+          CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+        shell: bash
+        run: |
+          CERT_PATH="$RUNNER_TEMP/build_certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          echo "$CERTIFICATE_P12" | base64 --decode > "$CERT_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+      - name: Locate Xcode project
+        id: xcode
+        shell: bash
+        run: |
+          WORKSPACE=$(find . -maxdepth 4 -name '*.xcworkspace' -print -quit)
+          PROJECT=$(find . -maxdepth 4 -name '*.xcodeproj' -print -quit)
+          if [[ -n "$WORKSPACE" ]]; then
+            echo "kind=workspace" >> "$GITHUB_OUTPUT"
+            echo "path=$WORKSPACE" >> "$GITHUB_OUTPUT"
+          elif [[ -n "$PROJECT" ]]; then
+            echo "kind=project" >> "$GITHUB_OUTPUT"
+            echo "path=$PROJECT" >> "$GITHUB_OUTPUT"
+          else
+            exit 1
+          fi
+
+      - name: Archive iOS app
+        env:
+          IOS_SCHEME: ${{ vars.IOS_SCHEME }}
+        shell: bash
+        run: |
+          if [[ -z "$IOS_SCHEME" ]]; then
+            echo "Repository variable IOS_SCHEME is required" >&2
+            exit 1
+          fi
+          if [[ "${{ steps.xcode.outputs.kind }}" == "workspace" ]]; then
+            SOURCE=(-workspace "${{ steps.xcode.outputs.path }}")
+          else
+            SOURCE=(-project "${{ steps.xcode.outputs.path }}")
+          fi
+          xcodebuild "${SOURCE[@]}" \
+            -scheme "$IOS_SCHEME" \
+            -configuration Release \
+            -archivePath "$RUNNER_TEMP/SINERGY.xcarchive" \
+            -destination 'generic/platform=iOS' \
+            -allowProvisioningUpdates \
+            archive
+
+      - name: Export IPA
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        shell: bash
+        run: |
+          mkdir -p dist/ios
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/SINERGY.xcarchive" \
+            -exportPath dist/ios \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -allowProvisioningUpdates
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sinergy-ios
+          path: dist/ios/*.ipa
+          if-no-files-found: error
+
+      - name: Upload IPA to TestFlight
+        if: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 != '' }}
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          echo "$ASC_API_KEY_BASE64" | base64 --decode > "$KEY_PATH"
+          IPA=$(find dist/ios -name '*.ipa' -print -quit)
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$IPA" \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID"
+
+  release:
+    name: GitHub Release
+    needs: [detect, android, ios]
+    if: >-
+      always() &&
+      (startsWith(github.ref, 'refs/tags/v') || github.event.inputs.create_github_release == 'true') &&
+      (needs.android.result == 'success' || needs.android.result == 'skipped') &&
+      (needs.ios.result == 'success' || needs.ios.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            TAG="manual-${GITHUB_RUN_NUMBER}"
+            git config --global user.name github-actions
+            git config --global user.email github-actions@github.com
+          fi
+          gh release create "$TAG" dist/* --generate-notes --title "SINERGY Finance $TAG"
