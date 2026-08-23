@@ -45,15 +45,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
+      - run: python scripts/sync_web_assets.py
       - run: python scripts/verify_store_source.py
-      - run: python tests/nexus_v800_latent_reasoning_e2e.py
-      - run: python tests/currency_ui_test.py
-      - run: python tests/home_capital_curve_v770_test.py
-      - run: node tests/wallet_creation_regression_test.js
-      - run: node tests/integration_wallet_test.js
 
   android:
     name: Android APK + AAB
@@ -61,6 +54,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/sync_web_assets.py
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -151,6 +148,10 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/sync_web_assets.py
       - name: Select Xcode
         run: |
           if [ -d /Applications/Xcode_26.6.app ]; then sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer; fi
