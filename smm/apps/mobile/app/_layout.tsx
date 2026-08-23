@@ -1,0 +1,4 @@
+import { Tabs } from 'expo-router';
+import { Text } from 'react-native';
+const icon=(label:string)=>(p:any)=><Text style={{fontSize:18,opacity:p.focused?1:.55}}>{label}</Text>;
+export default function Layout(){return <Tabs screenOptions={{headerStyle:{backgroundColor:'#080b09'},headerTintColor:'#fff',tabBarStyle:{backgroundColor:'#080b09',borderTopColor:'#233126'},tabBarActiveTintColor:'#7CFF6B',tabBarInactiveTintColor:'#7c887f'}}><Tabs.Screen name="index" options={{title:'Главная',tabBarIcon:icon('⌂')}}/><Tabs.Screen name="create" options={{title:'Создать',tabBarIcon:icon('＋')}}/><Tabs.Screen name="calendar" options={{title:'Календарь',tabBarIcon:icon('◫')}}/><Tabs.Screen name="inbox" options={{title:'Входящие',tabBarIcon:icon('◉')}}/><Tabs.Screen name="more" options={{title:'Ещё',tabBarIcon:icon('•••')}}/></Tabs>}

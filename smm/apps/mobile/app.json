@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name":"Синергия-СММ",
+    "slug":"sinergy-smm",
+    "version":"1.2.0",
+    "scheme":"sinergysmm",
+    "ios":{"bundleIdentifier":"ai.sinergy.smm"},
+    "android":{"package":"ai.sinergy.smm","versionCode":12,"adaptiveIcon":{"backgroundColor":"#080b09"}},
+    "runtimeVersion":"1.2.0",
+    "plugins":["expo-router"]
+  }
+}

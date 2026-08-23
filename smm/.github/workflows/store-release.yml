@@ -1,0 +1,15 @@
+name: SINERGY SMM Store Release Foundation
+on:
+  workflow_dispatch:
+  push:
+    tags: ['smm-v*']
+jobs:
+  validate-mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: cd smm/apps/mobile && npm install
+      - run: node -e "const c=require('./smm/apps/mobile/app.json'); if(c.expo.ios.bundleIdentifier!=='ai.sinergy.smm'||c.expo.android.package!=='ai.sinergy.smm') process.exit(1)"
+      - run: echo 'Native signing/deploy jobs are enabled after Apple/Google/RuStore credentials are added.'

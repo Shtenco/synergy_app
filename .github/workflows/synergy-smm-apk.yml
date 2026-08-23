@@ -1,0 +1,62 @@
+name: SINERGY SMM Android APK
+
+on:
+  push:
+    branches: [synergy-smm-v1]
+    paths:
+      - 'smm/apps/mobile/**'
+      - '.github/workflows/synergy-smm-apk.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'smm/apps/mobile/**'
+      - '.github/workflows/synergy-smm-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+          cache: npm
+          cache-dependency-path: smm/apps/mobile/package.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Create clean Expo SDK 57 native project
+        run: |
+          npx --yes create-expo-app@latest /tmp/sinergy-smm-build --template default@sdk-57 --yes
+          rm -rf /tmp/sinergy-smm-build/app /tmp/sinergy-smm-build/components
+          cp -R smm/apps/mobile/app /tmp/sinergy-smm-build/app
+          cp -R smm/apps/mobile/components /tmp/sinergy-smm-build/components
+          cp -R smm/apps/mobile/lib /tmp/sinergy-smm-build/lib
+          cp smm/apps/mobile/app.json /tmp/sinergy-smm-build/app.json
+      - name: Generate Android project
+        working-directory: /tmp/sinergy-smm-build
+        run: npx expo prebuild --platform android --clean --no-install
+      - name: Build installable release APK
+        working-directory: /tmp/sinergy-smm-build/android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+      - name: Normalize artifact name
+        run: |
+          mkdir -p dist
+          APK=$(find /tmp/sinergy-smm-build/android/app/build/outputs/apk/release -name '*.apk' -type f | head -1)
+          test -n "$APK"
+          cp "$APK" dist/SINERGY-SMM-v1.2.0.apk
+          sha256sum dist/SINERGY-SMM-v1.2.0.apk > dist/SINERGY-SMM-v1.2.0.apk.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SINERGY-SMM-v1.2.0-APK
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30

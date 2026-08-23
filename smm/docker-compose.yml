@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: sinergy_smm
+      POSTGRES_USER: sinergy
+      POSTGRES_PASSWORD: sinergy_dev
+    ports: ["5432:5432"]
+  redis:
+    image: redis:8-alpine
+    ports: ["6379:6379"]
+  api:
+    image: python:3.12-slim
+    working_dir: /app
+    volumes: ["./backend:/app"]
+    command: sh -c "pip install -r requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    ports: ["8000:8000"]
+    depends_on: [postgres,redis]
