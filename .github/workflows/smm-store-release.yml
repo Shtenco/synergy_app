@@ -1,0 +1,15 @@
+name: SINERGY SMM Store Foundation
+on:
+  workflow_dispatch:
+  push:
+    tags: ['smm-v*']
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: cd smm/apps/mobile && npm install
+      - run: node -e "const c=require('./smm/apps/mobile/app.json'); console.log(c.expo.name,c.expo.version,c.expo.ios.bundleIdentifier,c.expo.android.package)"
+      - run: echo 'Signing/deploy stages for App Store, Google Play and RuStore will use the same secret model as SINERGY Finance after store accounts are connected.'
