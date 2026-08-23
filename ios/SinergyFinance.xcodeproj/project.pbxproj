@@ -1,0 +1,22 @@
+// !$*UTF8*$!
+{ archiveVersion = 1; classes = {}; objectVersion = 77; objects = {
+A1 = {isa = PBXProject; attributes = {LastSwiftUpdateCheck = 2600; LastUpgradeCheck = 2600;}; buildConfigurationList = C1; compatibilityVersion = "Xcode 16.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions=(en,Base); mainGroup=G1; productRefGroup=G2; projectDirPath=""; projectRoot=""; targets=(T1);};
+G1={isa=PBXGroup;children=(F1,F2,F3,F4,F5,F6,G2);sourceTree="<group>";}; G2={isa=PBXGroup;children=(P1);name=Products;sourceTree="<group>";};
+F1={isa=PBXFileReference;lastKnownFileType=sourcecode.swift;path=SinergyFinance/AppDelegate.swift;sourceTree="<group>";};
+F2={isa=PBXFileReference;lastKnownFileType=sourcecode.swift;path=SinergyFinance/WebViewController.swift;sourceTree="<group>";};
+F3={isa=PBXFileReference;lastKnownFileType=text.plist.xml;path=SinergyFinance/Info.plist;sourceTree="<group>";};
+F4={isa=PBXFileReference;lastKnownFileType=folder;path=SinergyFinance/www;sourceTree="<group>";};
+F5={isa=PBXFileReference;lastKnownFileType=folder.assetcatalog;path=SinergyFinance/Assets.xcassets;sourceTree="<group>";};
+F6={isa=PBXFileReference;lastKnownFileType=text.xml;path=SinergyFinance/PrivacyInfo.xcprivacy;sourceTree="<group>";};
+P1={isa=PBXFileReference;explicitFileType=wrapper.application;includeInIndex=0;path=SinergyFinance.app;sourceTree=BUILT_PRODUCTS_DIR;};
+B1={isa=PBXBuildFile;fileRef=F1;};B2={isa=PBXBuildFile;fileRef=F2;};B4={isa=PBXBuildFile;fileRef=F4;};B5={isa=PBXBuildFile;fileRef=F5;};B6={isa=PBXBuildFile;fileRef=F6;};
+S1={isa=PBXSourcesBuildPhase;buildActionMask=2147483647;files=(B1,B2);runOnlyForDeploymentPostprocessing=0;};
+R1={isa=PBXResourcesBuildPhase;buildActionMask=2147483647;files=(B4,B5,B6);runOnlyForDeploymentPostprocessing=0;};
+K1={isa=PBXFrameworksBuildPhase;buildActionMask=2147483647;files=();runOnlyForDeploymentPostprocessing=0;};
+T1={isa=PBXNativeTarget;buildConfigurationList=C2;buildPhases=(S1,K1,R1);buildRules=();dependencies=();name=SinergyFinance;productName=SinergyFinance;productReference=P1;productType="com.apple.product-type.application";};
+C1={isa=XCConfigurationList;buildConfigurations=(D1,RD1);defaultConfigurationIsVisible=0;defaultConfigurationName=Release;};
+C2={isa=XCConfigurationList;buildConfigurations=(D2,RD2);defaultConfigurationIsVisible=0;defaultConfigurationName=Release;};
+D1={isa=XCBuildConfiguration;buildSettings={};name=Debug;};RD1={isa=XCBuildConfiguration;buildSettings={};name=Release;};
+D2={isa=XCBuildConfiguration;buildSettings={ASSETCATALOG_COMPILER_APPICON_NAME=AppIcon;CODE_SIGN_STYLE=Automatic;CURRENT_PROJECT_VERSION=810;DEVELOPMENT_TEAM=$(SINERGY_APPLE_TEAM_ID);GENERATE_INFOPLIST_FILE=NO;INFOPLIST_FILE=SinergyFinance/Info.plist;IPHONEOS_DEPLOYMENT_TARGET=16.0;MARKETING_VERSION=8.1.0;PRODUCT_BUNDLE_IDENTIFIER=ai.sinergy.finance;PRODUCT_NAME=SinergyFinance;SDKROOT=iphoneos;SWIFT_VERSION=5.0;TARGETED_DEVICE_FAMILY="1,2";};name=Debug;};
+RD2={isa=XCBuildConfiguration;buildSettings={ASSETCATALOG_COMPILER_APPICON_NAME=AppIcon;CODE_SIGN_STYLE=Automatic;CURRENT_PROJECT_VERSION=810;DEVELOPMENT_TEAM=$(SINERGY_APPLE_TEAM_ID);GENERATE_INFOPLIST_FILE=NO;INFOPLIST_FILE=SinergyFinance/Info.plist;IPHONEOS_DEPLOYMENT_TARGET=16.0;MARKETING_VERSION=8.1.0;PRODUCT_BUNDLE_IDENTIFIER=ai.sinergy.finance;PRODUCT_NAME=SinergyFinance;SDKROOT=iphoneos;SWIFT_COMPILATION_MODE=wholemodule;SWIFT_OPTIMIZATION_LEVEL="-O";SWIFT_VERSION=5.0;TARGETED_DEVICE_FAMILY="1,2";VALIDATE_PRODUCT=YES;};name=Release;};
+}; rootObject=A1; }
