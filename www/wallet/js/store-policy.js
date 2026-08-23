@@ -1,0 +1,1 @@
+window.SINERGY_STORE_PROFILE=Object.freeze({version:'8.1.0',custody:'non-custodial',dexExecution:false,bridgeExecution:false,arbitrageExecution:false});
