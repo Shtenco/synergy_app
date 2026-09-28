@@ -95,3 +95,57 @@ release artifact != trusted until signed/verified
 
 - [SYNERGY SYSTEM](https://github.com/Shtenco/synergy_system)
 - [Атлас 75 репозиториев](https://github.com/Shtenco/synergy_system/blob/main/docs/SYNERGY_REPOSITORY_ATLAS.md)
+
+
+---
+
+# 📱 Глубокий технический паспорт SINERGY Finance
+
+## Реальная структура `main`
+
+```text
+android/                 Android store project
+ios/                     Xcode project
+www/                     shared UI
+scripts/                 build/sync/store tooling
+tests/                   UI/regression/smoke tests
+.github/workflows/       verify + store release pipelines
+docs/RELEASE-SECRETS.md  signing/store-secret policy
+```
+
+## Release data flow
+
+```mermaid
+flowchart LR
+    WWW[🌐 www/] --> SYNC[🔄 sync_web_assets.py]
+    SYNC --> AND[🤖 Android]
+    SYNC --> IOS[🍎 iOS]
+    AND --> AAB[📦 APK/AAB]
+    IOS --> IPA[📦 Archive/IPA]
+    AAB --> STORE[Google Play / RuStore]
+    IPA --> APPSTORE[App Store / TestFlight]
+```
+
+## Что показывают тесты
+
+`tests/nexus_v800_latent_reasoning_e2e.py` на текущем `main` — smoke-проверка наличия `www/index.html`, а не настоящий end-to-end тест latent reasoning. Поэтому название теста не должно интерпретироваться сильнее его кода.
+
+Другие тесты охватывают currency UI, capital-curve и wallet regression; их claims нужно связывать с конкретным проверяемым поведением.
+
+## Непереговорные инварианты
+
+```text
+store release != backend correctness
+UI balance    != accounting ledger
+smoke test    != model-quality benchmark
+wallet UI     != custody authority
+```
+
+## Следующий рубеж
+
+- machine-readable API authority map;
+- signed release provenance;
+- end-to-end sandbox flow Finance OS → app display;
+- wallet/security threat model;
+- physical-device release verification;
+- test names aligned with what tests actually prove.
