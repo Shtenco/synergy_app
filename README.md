@@ -46,3 +46,52 @@ Store credentials and signing material are intentionally not committed. See `doc
 ## Release safety
 
 Do not commit keystores, `.p12`, `.p8`, provisioning profiles or store API credentials. Keep the Android upload key stable across releases.
+
+
+---
+
+# 🧭 Место SINERGY Finance в федерации SYNERGY
+
+`synergy_app` — уже не абстрактный placeholder: в `main` присутствуют Android/iOS проекты, shared `www/`, release scripts, tests и store metadata. Его роль — **пользовательский финансовый интерфейс**, а не источник бухгалтерской истины.
+
+```mermaid
+flowchart LR
+    USER[👤 User] --> APP[📱 SINERGY Finance]
+    APP --> API[🔌 Backend/API]
+    API --> FOS[💰 synergy_financial_os]
+    API --> PAY[💳 synergy_pay_system]
+    APP --> RELEASE[📦 App Store / Play / RuStore]
+```
+
+## Authority boundary
+
+```text
+displayed balance != canonical ledger
+UI success        != settlement
+local cache       != accounting record
+release artifact != trusted until signed/verified
+```
+
+## Что уже видно в репозитории
+
+- Android store project;
+- iOS Xcode project;
+- shared web UI;
+- release tooling;
+- source smoke/regression checks;
+- CI/CD store release workflow;
+- документация по секретам/релизу.
+
+## Следующие documentation gates
+
+- связать API endpoints с authority owner;
+- описать offline/cache semantics;
+- добавить threat model мобильного клиента;
+- закрепить release provenance;
+- добавить privacy/data-flow diagram;
+- описать idempotency денежных действий.
+
+### Навигация
+
+- [SYNERGY SYSTEM](https://github.com/Shtenco/synergy_system)
+- [Атлас 75 репозиториев](https://github.com/Shtenco/synergy_system/blob/main/docs/SYNERGY_REPOSITORY_ATLAS.md)
