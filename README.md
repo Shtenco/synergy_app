@@ -1,151 +1,332 @@
-# SINERGY Finance
+# 📱 SINERGY Finance / synergy_app — verified mobile-release dossier
 
-Store release repository for `ai.sinergy.finance`.
+> **Статус:** 🟡 CANDIDATE source/release surface. Android, iOS, web assets, tests, federation source-integrity contract and release workflows exist.
+> **Проверено по фактическому `main`:** 29.09.2026.
+> **Ключевая граница:** source verified ≠ artifact built ≠ store published.
 
-## Targets
+## 1. 🎯 Задача
 
-- Apple App Store / TestFlight
-- Google Play
-- RuStore
-- GitHub Releases (signed APK/AAB/IPA artifacts when platform signing is configured)
+`synergy_app` — multi-platform application source для SINERGY Finance. Repository уже существенно глубже обычного UI shell: содержит Android/iOS projects, web assets, release automation, store tooling и tests.
 
-## Current release
+Его задача — быть безопасным presentation/control surface, не вторым financial ledger.
 
-- Version: `8.1.0`
-- Android versionCode: `810`
-- Android compile/target SDK: `36`
-- iOS bundle ID: `ai.sinergy.finance`
-- iOS deployment target: `16.0`
+## 2. 📦 Фактический tree
 
-## CI/CD
+```text
+synergy_app/
+├── android/
+│   ├── app/
+│   ├── build.gradle
+│   └── ...
+├── ios/
+│   ├── SinergyFinance.xcodeproj/
+│   └── SinergyFinance/
+│       ├── AppDelegate.swift
+│       ├── WebViewController.swift
+│       ├── Info.plist
+│       └── PrivacyInfo.xcprivacy
+├── www/
+│   ├── index.html
+│   ├── css/
+│   ├── js/
+│   └── wallet/
+├── federation/release_contract.py
+├── tests/
+├── scripts/
+├── docs/RELEASE-SECRETS.md
+├── RELEASE_SETUP.md
+└── .github/workflows/
+```
 
-The primary pipeline is `.github/workflows/store-release.yml`.
+## 3. 🤖 Android baseline
 
-It performs:
+`android/app/build.gradle`:
 
-1. store-source verification;
-2. deterministic synchronization of `www/` into Android and iOS bundles;
-3. signed Android APK + AAB build;
-4. optional Google Play internal-track upload;
-5. optional RuStore AAB upload;
-6. signed iOS archive + IPA export;
-7. optional App Store Connect / TestFlight upload;
-8. GitHub Release artifact publication.
+```text
+namespace       ai.sinergy.finance
+applicationId   ai.sinergy.finance
+compileSdk      36
+targetSdk       36
+minSdk          26
+versionCode     810
+versionName     8.1.0
+Java            17
+```
 
-Store credentials and signing material are intentionally not committed. See `docs/RELEASE-SECRETS.md`.
+Release signing is injected through environment variables only if a keystore file is provided.
 
-## Source layout
+Current build config:
 
-- `android/` — Android store project
-- `ios/` — Xcode project
-- `www/` — shared web UI bundled into both platforms
-- `store/` — listing/privacy/review metadata
-- `scripts/` — build, asset sync and store upload tooling
-- `tests/` — source smoke/regression checks
+- `minifyEnabled false`;
+- `shrinkResources false`;
+- AndroidX WebKit dependency;
+- JUnit test dependency.
 
-## Release safety
+## 4. 🛡️ Android manifest security baseline
 
-Do not commit keystores, `.p12`, `.p8`, provisioning profiles or store API credentials. Keep the Android upload key stable across releases.
+Inspected `AndroidManifest.xml`:
 
+- INTERNET only in visible permission list;
+- `android:allowBackup="false"`;
+- `android:usesCleartextTraffic="false"`;
+- explicit network security config;
+- launcher activity exported;
+- portrait orientation.
 
----
+Federation release contract explicitly rejects dangerous permission strings:
 
-# 🧭 Место SINERGY Finance в федерации SYNERGY
+```text
+CAMERA
+RECORD_AUDIO
+READ_CONTACTS
+ACCESS_FINE_LOCATION
+READ_SMS
+```
 
-`synergy_app` — уже не абстрактный placeholder: в `main` присутствуют Android/iOS проекты, shared `www/`, release scripts, tests и store metadata. Его роль — **пользовательский финансовый интерфейс**, а не источник бухгалтерской истины.
+если они появятся в manifest.
+
+## 5. 🍎 iOS baseline
+
+Inspected iOS tree includes:
+
+- AppDelegate;
+- WebViewController;
+- Info.plist;
+- Xcode project;
+- PrivacyInfo.xcprivacy.
+
+Current PrivacyInfo declares:
+
+```text
+NSPrivacyTracking = false
+tracking domains = []
+collected data types = []
+accessed API types = []
+```
+
+Это **source declaration**, not external privacy audit.
+
+## 6. 🔗 Federation source-integrity contract
+
+`federation/release_contract.py`:
+
+```text
+CONTRACT_ID = synergy.app.store-source-evidence/v1
+AUTHORITY   = mobile_source_integrity
+```
+
+It requires:
+
+- Android app Gradle;
+- Android manifest;
+- iOS pbxproj;
+- iOS privacy manifest.
+
+Then checks:
+
+- versionName exists;
+- compileSdk/targetSdk = 36;
+- no cleartext;
+- backup disabled;
+- selected dangerous permissions absent.
+
+It hashes four source surfaces and returns:
+
+```text
+source_verified = true
+artifact_built = false
+store_published = false
+deployment_authority = false
+```
+
+## 7. 🧪 Maturity-boundary test
+
+`tests/test_federation_release_contract.py` explicitly asserts all four fields above.
+
+This prevents documentation from claiming Google Play/App Store release merely because source structure is valid.
+
+## 8. ⚙️ CI / release workflows
+
+Repository contains:
+
+- `verify.yml`;
+- `android-aab.yml`;
+- `ios-archive.yml`;
+- `release.yml`;
+- `store-release.yml`.
+
+`verify.yml` runs:
+
+- source verification script;
+- NEXUS latent reasoning E2E script;
+- currency UI test;
+- capital curve test;
+- JS wallet creation regression test.
+
+`RELEASE_SETUP.md` documents Android signing, Google Play service account, iOS certificate/App Store Connect secrets and GitHub Release flow.
+
+The existence of these workflows means release automation is designed; it does not itself prove current successful publication.
+
+## 9. 🔐 Release secret model
+
+Documentation correctly requires secrets to live in GitHub Actions secrets, including:
+
+- Android keystore material/passwords;
+- Google Play service account JSON;
+- Apple certificate/API key material.
+
+Rule:
+
+```text
+release credentials must never be committed to Git
+```
+
+This should be enforced by secret scanning, not only prose.
+
+## 10. 🏗️ Architecture
 
 ```mermaid
 flowchart LR
-    USER[👤 User] --> APP[📱 SINERGY Finance]
-    APP --> API[🔌 Backend/API]
-    API --> FOS[💰 synergy_financial_os]
-    API --> PAY[💳 synergy_pay_system]
-    APP --> RELEASE[📦 App Store / Play / RuStore]
+    WWW[Web assets] --> AND[Android WebView/native wrapper]
+    WWW --> IOS[iOS WebView/native wrapper]
+    AND --> AAB[APK/AAB]
+    IOS --> IPA[Archive/IPA]
+    SRC[Source surfaces] --> HASH[store-source-evidence/v1]
+    HASH --> META[Meta-OS evidence]
+    AAB -. observed release only .-> STORE1[Google Play]
+    IPA -. observed release only .-> STORE2[TestFlight/App Store]
 ```
 
-## Authority boundary
+## 11. 📥 Inputs / 📤 Outputs
+
+Inputs:
+
+- web source;
+- Android/iOS project metadata;
+- release environment/secrets;
+- verified backend/read-model state.
+
+Outputs:
+
+- source-integrity evidence;
+- local/platform build artifacts;
+- optional store/release artifacts if workflows succeed.
+
+## 12. 🛡️ Authority boundaries
 
 ```text
-displayed balance != canonical ledger
-UI success        != settlement
-local cache       != accounting record
-release artifact != trusted until signed/verified
+UI state          != financial truth
+source verified   != artifact built
+artifact built    != signed artifact
+signed artifact   != store published
+store published   != backend correctness
+wallet UI         != private-key authority by default
+deployment_authority = false
 ```
 
-## Что уже видно в репозитории
+## 13. ⚠️ Failure modes
 
-- Android store project;
-- iOS Xcode project;
-- shared web UI;
-- release tooling;
-- source smoke/regression checks;
-- CI/CD store release workflow;
-- документация по секретам/релизу.
+| Failure | Risk |
+|---|---|
+| SDK baseline drifts | release compatibility |
+| dangerous permission added | privacy regression |
+| cleartext enabled | MITM/data leak |
+| signing secret committed | credential compromise |
+| web asset drift Android/iOS | platform inconsistency |
+| stale WebView bundle | UI/API mismatch |
+| store upload succeeds but app broken | release ≠ functional validation |
+| version mismatch | rollout/reproducibility problem |
 
-## Следующие documentation gates
+## 14. 🧪 Required next validation
 
-- связать API endpoints с authority owner;
-- описать offline/cache semantics;
-- добавить threat model мобильного клиента;
-- закрепить release provenance;
-- добавить privacy/data-flow diagram;
-- описать idempotency денежных действий.
+- deterministic Android AAB hash;
+- iOS archive provenance;
+- web asset parity Android/iOS;
+- signing-certificate fingerprint evidence;
+- app install smoke;
+- Android API 26/36 matrix;
+- iOS supported-version smoke;
+- network-security negative test;
+- no-secret scan;
+- store-source vs uploaded artifact hash;
+- wallet end-to-end security test.
 
-### Навигация
+## 15. 🛠️ Reproducibility
 
-- [SYNERGY SYSTEM](https://github.com/Shtenco/synergy_system)
-- [Атлас 75 репозиториев](https://github.com/Shtenco/synergy_system/blob/main/docs/SYNERGY_REPOSITORY_ATLAS.md)
+Source verification:
 
+```bash
+python scripts/verify_store_source.py
+python tests/test_federation_release_contract.py
+```
+
+Android:
+
+```bash
+bash scripts/build_android_aab.sh
+```
+
+iOS archive script exists as `scripts/build_ios_archive.sh`.
+
+Canonical release requirements are in `RELEASE_SETUP.md`.
+
+## 16. 🗺️ Repository map
+
+| Path | Role |
+|---|---|
+| `android/` | Android app |
+| `ios/` | iOS app |
+| `www/` | shared/web UI |
+| `federation/release_contract.py` | source integrity evidence |
+| `tests/` | UI/release regressions |
+| `scripts/` | build/upload/source verification |
+| `.github/workflows/` | verify/build/release/store pipelines |
+| `RELEASE_SETUP.md` | release credentials/config documentation |
+
+## 17. 🔗 Место в SYNERGY
+
+Application-layer consumer of canonical state. Related authorities:
+
+- `synergy_apps`;
+- `synergy_meta_os`;
+- `synergy_financial_os`;
+- `synergy_pay_system`.
+
+It does not become ledger/payment authority.
+
+## 18. 📊 Evidence maturity
+
+| Layer | Status |
+|---|---|
+| Android source | ✅ |
+| iOS source | ✅ |
+| web assets | ✅ |
+| source integrity contract | ✅ |
+| security source checks | ✅ |
+| release workflows | ✅ definitions |
+| observed signed build | separate evidence required |
+| observed store publication | not inferred |
+| backend E2E | separate evidence required |
+
+## 19. 🚀 Roadmap
+
+1. capture observed AAB/IPA hashes;
+2. store artifact attestation;
+3. store publication receipts;
+4. install/device matrix;
+5. release rollback;
+6. privacy/security review;
+7. source→artifact→store provenance chain;
+8. M4/M5 observed evidence.
+
+## 20. 🛑 Что проект НЕ утверждает
+
+- that current branch is already published in stores;
+- that source checks equal mobile penetration/security test;
+- that privacy declaration independently proves zero data collection;
+- that build workflow implies successful signed release;
+- that UI can override domain authorities.
 
 ---
 
-# 📱 Глубокий технический паспорт SINERGY Finance
-
-## Реальная структура `main`
-
-```text
-android/                 Android store project
-ios/                     Xcode project
-www/                     shared UI
-scripts/                 build/sync/store tooling
-tests/                   UI/regression/smoke tests
-.github/workflows/       verify + store release pipelines
-docs/RELEASE-SECRETS.md  signing/store-secret policy
-```
-
-## Release data flow
-
-```mermaid
-flowchart LR
-    WWW[🌐 www/] --> SYNC[🔄 sync_web_assets.py]
-    SYNC --> AND[🤖 Android]
-    SYNC --> IOS[🍎 iOS]
-    AND --> AAB[📦 APK/AAB]
-    IOS --> IPA[📦 Archive/IPA]
-    AAB --> STORE[Google Play / RuStore]
-    IPA --> APPSTORE[App Store / TestFlight]
-```
-
-## Что показывают тесты
-
-`tests/nexus_v800_latent_reasoning_e2e.py` на текущем `main` — smoke-проверка наличия `www/index.html`, а не настоящий end-to-end тест latent reasoning. Поэтому название теста не должно интерпретироваться сильнее его кода.
-
-Другие тесты охватывают currency UI, capital-curve и wallet regression; их claims нужно связывать с конкретным проверяемым поведением.
-
-## Непереговорные инварианты
-
-```text
-store release != backend correctness
-UI balance    != accounting ledger
-smoke test    != model-quality benchmark
-wallet UI     != custody authority
-```
-
-## Следующий рубеж
-
-- machine-readable API authority map;
-- signed release provenance;
-- end-to-end sandbox flow Finance OS → app display;
-- wallet/security threat model;
-- physical-device release verification;
-- test names aligned with what tests actually prove.
+[🧭 SYNERGY SYSTEM](https://github.com/Shtenco/synergy_system) · [📚 Atlas](https://github.com/Shtenco/synergy_system/blob/main/docs/SYNERGY_REPOSITORY_ATLAS.md)
