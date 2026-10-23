@@ -1,16 +1,16 @@
-# 📱 SINERGY Finance / synergy_app — verified mobile-release dossier
+#  SINERGY Finance / synergy_app — verified mobile-release dossier
 
-> **Статус:** 🟡 CANDIDATE source/release surface. Android, iOS, web assets, tests, federation source-integrity contract and release workflows exist.
+> **Статус:**  CANDIDATE source/release surface. Android, iOS, web assets, tests, federation source-integrity contract and release workflows exist.
 > **Проверено по фактическому `main`:** 29.09.2026.
 > **Ключевая граница:** source verified ≠ artifact built ≠ store published.
 
-## 1. 🎯 Задача
+## 1.  Задача
 
 `synergy_app` — multi-platform application source для SINERGY Finance. Repository уже существенно глубже обычного UI shell: содержит Android/iOS projects, web assets, release automation, store tooling и tests.
 
 Его задача — быть безопасным presentation/control surface, не вторым financial ledger.
 
-## 2. 📦 Фактический tree
+## 2.  Фактический tree
 
 ```text
 synergy_app/
@@ -38,7 +38,7 @@ synergy_app/
 └── .github/workflows/
 ```
 
-## 3. 🤖 Android baseline
+## 3.  Android baseline
 
 `android/app/build.gradle`:
 
@@ -62,7 +62,7 @@ Current build config:
 - AndroidX WebKit dependency;
 - JUnit test dependency.
 
-## 4. 🛡️ Android manifest security baseline
+## 4.  Android manifest security baseline
 
 Inspected `AndroidManifest.xml`:
 
@@ -85,7 +85,7 @@ READ_SMS
 
 если они появятся в manifest.
 
-## 5. 🍎 iOS baseline
+## 5.  iOS baseline
 
 Inspected iOS tree includes:
 
@@ -106,7 +106,7 @@ accessed API types = []
 
 Это **source declaration**, not external privacy audit.
 
-## 6. 🔗 Federation source-integrity contract
+## 6.  Federation source-integrity contract
 
 `federation/release_contract.py`:
 
@@ -139,13 +139,13 @@ store_published = false
 deployment_authority = false
 ```
 
-## 7. 🧪 Maturity-boundary test
+## 7.  Maturity-boundary test
 
 `tests/test_federation_release_contract.py` explicitly asserts all four fields above.
 
 This prevents documentation from claiming Google Play/App Store release merely because source structure is valid.
 
-## 8. ⚙️ CI / release workflows
+## 8.  CI / release workflows
 
 Repository contains:
 
@@ -167,7 +167,7 @@ Repository contains:
 
 The existence of these workflows means release automation is designed; it does not itself prove current successful publication.
 
-## 9. 🔐 Release secret model
+## 9.  Release secret model
 
 Documentation correctly requires secrets to live in GitHub Actions secrets, including:
 
@@ -183,7 +183,7 @@ release credentials must never be committed to Git
 
 This should be enforced by secret scanning, not only prose.
 
-## 10. 🏗️ Architecture
+## 10.  Architecture
 
 ```mermaid
 flowchart LR
@@ -197,7 +197,7 @@ flowchart LR
     IPA -. observed release only .-> STORE2[TestFlight/App Store]
 ```
 
-## 11. 📥 Inputs / 📤 Outputs
+## 11.  Inputs /  Outputs
 
 Inputs:
 
@@ -212,7 +212,7 @@ Outputs:
 - local/platform build artifacts;
 - optional store/release artifacts if workflows succeed.
 
-## 12. 🛡️ Authority boundaries
+## 12.  Authority boundaries
 
 ```text
 UI state          != financial truth
@@ -224,7 +224,7 @@ wallet UI         != private-key authority by default
 deployment_authority = false
 ```
 
-## 13. ⚠️ Failure modes
+## 13.  Failure modes
 
 | Failure | Risk |
 |---|---|
@@ -237,7 +237,7 @@ deployment_authority = false
 | store upload succeeds but app broken | release ≠ functional validation |
 | version mismatch | rollout/reproducibility problem |
 
-## 14. 🧪 Required next validation
+## 14.  Required next validation
 
 - deterministic Android AAB hash;
 - iOS archive provenance;
@@ -251,7 +251,7 @@ deployment_authority = false
 - store-source vs uploaded artifact hash;
 - wallet end-to-end security test.
 
-## 15. 🛠️ Reproducibility
+## 15.  Reproducibility
 
 Source verification:
 
@@ -270,7 +270,7 @@ iOS archive script exists as `scripts/build_ios_archive.sh`.
 
 Canonical release requirements are in `RELEASE_SETUP.md`.
 
-## 16. 🗺️ Repository map
+## 16.  Repository map
 
 | Path | Role |
 |---|---|
@@ -283,7 +283,7 @@ Canonical release requirements are in `RELEASE_SETUP.md`.
 | `.github/workflows/` | verify/build/release/store pipelines |
 | `RELEASE_SETUP.md` | release credentials/config documentation |
 
-## 17. 🔗 Место в SYNERGY
+## 17.  Место в SYNERGY
 
 Application-layer consumer of canonical state. Related authorities:
 
@@ -294,21 +294,21 @@ Application-layer consumer of canonical state. Related authorities:
 
 It does not become ledger/payment authority.
 
-## 18. 📊 Evidence maturity
+## 18.  Evidence maturity
 
 | Layer | Status |
 |---|---|
-| Android source | ✅ |
-| iOS source | ✅ |
-| web assets | ✅ |
-| source integrity contract | ✅ |
-| security source checks | ✅ |
-| release workflows | ✅ definitions |
+| Android source |  |
+| iOS source |  |
+| web assets |  |
+| source integrity contract |  |
+| security source checks |  |
+| release workflows |  definitions |
 | observed signed build | separate evidence required |
 | observed store publication | not inferred |
 | backend E2E | separate evidence required |
 
-## 19. 🚀 Roadmap
+## 19.  Roadmap
 
 1. capture observed AAB/IPA hashes;
 2. store artifact attestation;
@@ -319,7 +319,7 @@ It does not become ledger/payment authority.
 7. source→artifact→store provenance chain;
 8. M4/M5 observed evidence.
 
-## 20. 🛑 Что проект НЕ утверждает
+## 20.  Что проект НЕ утверждает
 
 - that current branch is already published in stores;
 - that source checks equal mobile penetration/security test;
@@ -329,4 +329,4 @@ It does not become ledger/payment authority.
 
 ---
 
-[🧭 SYNERGY SYSTEM](https://github.com/Shtenco/synergy_system) · [📚 Atlas](https://github.com/Shtenco/synergy_system/blob/main/docs/SYNERGY_REPOSITORY_ATLAS.md)
+[ SYNERGY SYSTEM](https://github.com/Shtenco/synergy_system) · [ Atlas](https://github.com/Shtenco/synergy_system/blob/main/docs/SYNERGY_REPOSITORY_ATLAS.md)
