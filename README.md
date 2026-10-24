@@ -1,3 +1,9 @@
+<!-- RESEARCH-V2-2026:START -->
+<img src="assets/readme/scientific-process-v2.svg" width="100%" alt="SINERGY FINANCE / MOBILE RELEASE"/>
+
+[Детальное научное досье V2](docs/SCIENTIFIC_DOSSIER_V2_2026.md) — алгоритмы, формулы и эксперименты. Оригинальный README ниже сохранён полностью.
+<!-- RESEARCH-V2-2026:END -->
+
 #  SINERGY Finance / synergy_app — verified mobile-release dossier
 
 > **Статус:**  CANDIDATE source/release surface. Android, iOS, web assets, tests, federation source-integrity contract and release workflows exist.
